@@ -48,12 +48,12 @@ wire [      31:0] regfile_wdata, dram_data,alu_out,
                   alu_operand_2;
 wire [      63:0] signal_IF_out,signal_ID_in;           // updated_pc, instruction
 
-wire [     147:0] signal_ID_out, signal_EX_in;          // reg_write[147], mem_2_reg[146]
-                                                        // jump [145], branch[144], mem_read[143], mem_write[142]
-                                                        // reg_dst[141], alu_op[140:139], alu_src[138]
-                                                        // updated_pc[137:106]
-                                                        // regfile_data_1[105:74], regfile_data_2 [73:42]
-                                                        // immediate_extended[41:10], rt[9:5], rd[4:0]
+wire [     169:0] signal_ID_out, signal_EX_in;          // reg_write[169], mem_2_reg[168]
+                                                        // jump [167], branch[166], mem_read[165], mem_write[164]
+                                                        // reg_dst[163], alu_op[162:161], alu_src[160]
+                                                        // updated_pc[159:128]
+                                                        // regfile_data_1[127:96], regfile_data_2 [95:64]
+                                                        // immediate_extended[63:32], instruction[31:0]
                   
 
 wire signed [31:0] immediate_extended;
@@ -108,15 +108,15 @@ reg_arstn_en #(
 
 control_unit control_unit(
    .opcode   (signal_ID_in[31:26]),
-   .reg_dst  (reg_dst           ),
-   .branch   (branch            ),
-   .mem_read (mem_read          ),
-   .mem_2_reg(mem_2_reg         ),
-   .alu_op   (alu_op            ),
-   .mem_write(mem_write         ),
-   .alu_src  (alu_src           ),      //alu_src
-   .reg_write(reg_write         ),
-   .jump     (jump              )
+   .reg_dst  (signal_ID_out[141]           ),           //reg_dst
+   .branch   (signal_ID_out[144]            ),          //branch
+   .mem_read (signal_ID_out[143]          ),            //mem_read
+   .mem_2_reg(signal_ID_out[146]         ),             //mem_2_reg
+   .alu_op   (signal_ID_out[140:139]            ),      //alu_op
+   .mem_write(signal_ID_out[142]         ),             //mem_write
+   .alu_src  (signal_ID_out[138]),                      //alu_src
+   .reg_write(signal_ID_out[147]         ),             //reg_write
+   .jump     (signal_ID_out[145]              )         //jump
 );
 
 
@@ -143,8 +143,6 @@ assign signal_ID_out[41:10] = immediate_extended;
 assign signal_ID_out[137:106] = signal_ID_in[63:32];    //updated_pc
 
 
-
-
 // EX STAGE
 
 reg_arstn_en #(
@@ -160,24 +158,24 @@ reg_arstn_en #(
 mux_2 #(
    .DATA_W(5)
 ) regfile_dest_mux (
-   .input_a (instruction[15:11]),
-   .input_b (instruction[20:16]),
-   .select_a(reg_dst          ),
+   .input_a (signal_EX_in[4:0]),
+   .input_b (signal_EX_in[9:5]),
+   .select_a(signal_EX_in[141]          ),
    .mux_out (regfile_waddr     )
 );
 
 alu_control alu_ctrl(
-   .function_field (instruction[5:0]),
-   .alu_op         (alu_op          ),
+   .function_field (signal_EX_in[15:10]),               //instruction[5:0]
+   .alu_op         (signal_EX_in[140:139]          ),   //alu_op
    .alu_control    (alu_control     )
 );
 
 mux_2 #(
    .DATA_W(32)
 ) alu_operand_mux (
-   .input_a (immediate_extended),
-   .input_b (regfile_data_2    ),
-   .select_a(alu_src           ),
+   .input_a (signal_EX_in[41:10]),          // immediate_extended
+   .input_b (signal_EX_in[73:42]    ),      //regfile_data_2
+   .select_a(signal_EX_in[138]           ), //alu_src
    .mux_out (alu_operand_2     )
 );
 
@@ -185,11 +183,11 @@ mux_2 #(
 alu#(
    .DATA_W(32)
 ) alu(
-   .alu_in_0 (regfile_data_1),
+   .alu_in_0 (signal_EX_in[105:74),     //regfile_data_1
    .alu_in_1 (alu_operand_2 ),
    .alu_ctrl (alu_control   ),
    .alu_out  (alu_out       ),
-   .shft_amnt(instruction[10:6]),
+   .shft_amnt(signal_EX_in[20:16]),     // instruction[10:6]
    .zero_flag(zero_flag     ),
    .overflow (              )
 );
