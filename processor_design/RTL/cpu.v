@@ -195,7 +195,7 @@ mux_2 #(
 alu#(
    .DATA_W(32)
 ) alu(
-   .alu_in_0 (signal_EX_in[127:96),         //regfile_data_1
+   .alu_in_0 (signal_EX_in[127:96]),         //regfile_data_1
    .alu_in_1 (alu_operand_2 ),
    .alu_ctrl (alu_control   ),
    .alu_out  (signal_EX_out[132:101]),      // alu_out
