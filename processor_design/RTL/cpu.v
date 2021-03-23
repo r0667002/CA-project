@@ -66,7 +66,7 @@ wire [     171:0] signal_EX_out, signal_MEM_in;          // reg_write[171], mem_
 wire [      97:0] signal_MEM_out, signal_WB_in;          // reg_write[97], mem_2_reg[96]
                                                          // dram_data[95:64]
                                                          // alu_out[63:32]
-                                                         // regfile_data_2[31:0]
+                                                         // regfile_waddr[31:0]
                   
 
 wire signed [31:0] immediate_extended;
@@ -138,10 +138,10 @@ register_file #(
 ) register_file(
    .clk      (clk               ),
    .arst_n   (arst_n            ),
-   .reg_write(reg_write         ),
+   .reg_write(signal_WB_in[97]         ),            // reg_write
    .raddr_1  (signal_ID_in[25:21]),
    .raddr_2  (signal_ID_in[20:16]),
-   .waddr    (regfile_waddr     ),
+   .waddr    (signal_WB_in[31:0]     ),       // regfile_waddr
    .wdata    (regfile_wdata     ),
    .rdata_1  (signal_ID_out[127:96]    ),     //regfile_data_1
    .rdata_2  (signal_ID_out[95:64]    )       //regfile_data_2
