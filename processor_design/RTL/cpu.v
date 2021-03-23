@@ -81,9 +81,9 @@ pc #(
    .arst_n    (arst_n    ),
    .branch_pc (branch_pc ),
    .jump_pc   (jump_pc   ),
-   .zero_flag (zero_flag ),
-   .branch    (branch    ),
-   .jump      (jump      ),
+   .zero_flag (signal_MEM_in[133] ),              // zero_flag
+   .branch    (signal_MEM_in[168]    ), // branch
+   .jump      (signal_MEM_in[169]      ),        // jump
    .current_pc(current_pc),
    .enable    (enable    ),
    .updated_pc(signal_IF_out[63:32])        // updated_pc
@@ -269,7 +269,7 @@ mux_2 #(
    .input_b  (signal_WB_in[63:32]),          // alu_out
    .select_a (signal_WB_in[96]   ),          // mem_2_reg
    .mux_out  (regfile_wdata      )
-);
+   );
 
 
 
