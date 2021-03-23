@@ -17,7 +17,6 @@
 //	rdata_ext_2: Read data from Data Memory
 
 
-
 module cpu(
 		input  wire			  clk,
 		input  wire         arst_n,
@@ -47,12 +46,21 @@ wire [       4:0] regfile_waddr;
 wire [      31:0] regfile_wdata, dram_data,alu_out,
                   regfile_data_1,regfile_data_2,
                   alu_operand_2;
+wire [      63:0] signal_IF_out,signal_ID_in;           // updated_pc, instruction
+
+wire [     147:0] signal_ID_out, signal_EX_in;          // reg_write[147], mem_2_reg[146]
+                                                        // jump [145], branch[144], mem_read[143], mem_write[142]
+                                                        // reg_dst[141], alu_op[140:139], alu_src[138]
+                                                        // updated_pc[137:106]
+                                                        // regfile_data_1[105:74], regfile_data_2 [73:42]
+                                                        // immediate_extended[41:10], rt[9:5], rd[4:0]
+                  
 
 wire signed [31:0] immediate_extended;
 
-assign immediate_extended = $signed(instruction[15:0]);
 
 
+// IF Stage
 pc #(
    .DATA_W(32)
 ) program_counter (
@@ -65,7 +73,7 @@ pc #(
    .jump      (jump      ),
    .current_pc(current_pc),
    .enable    (enable    ),
-   .updated_pc(updated_pc)
+   .updated_pc(signal_IF_out[63:32])        // updated_pc
 );
 
 
@@ -78,7 +86,7 @@ sram #(
    .wen      (1'b0          ),
    .ren      (1'b1          ),
    .wdata    (32'b0         ),
-   .rdata    (instruction   ),   
+   .rdata    (signal_IF_out[31:0]   ),      //instruction
    .addr_ext (addr_ext      ),
    .wen_ext  (wen_ext       ), 
    .ren_ext  (ren_ext       ),
@@ -86,20 +94,69 @@ sram #(
    .rdata_ext(rdata_ext     )
 );
 
+// ID STAGE
+
+reg_arstn_en #(
+      .DATA_W(64)
+) signal_pipe_IF_ID(
+      .clk   (clk       ),
+      .arst_n(arst_n    ),
+      .din   (signal_IF_out  ),
+      .en    (enable    ),
+      .dout  (signal_ID_in)
+   );
+
 control_unit control_unit(
-   .opcode   (instruction[31:26]),
+   .opcode   (signal_ID_in[31:26]),
    .reg_dst  (reg_dst           ),
    .branch   (branch            ),
    .mem_read (mem_read          ),
    .mem_2_reg(mem_2_reg         ),
    .alu_op   (alu_op            ),
    .mem_write(mem_write         ),
-   .alu_src  (alu_src           ),
+   .alu_src  (alu_src           ),      //alu_src
    .reg_write(reg_write         ),
    .jump     (jump              )
 );
 
 
+register_file #(
+   .DATA_W(32)
+) register_file(
+   .clk      (clk               ),
+   .arst_n   (arst_n            ),
+   .reg_write(reg_write         ),
+   .raddr_1  (signal_ID_in[25:21]),
+   .raddr_2  (signal_ID_in[20:16]),
+   .waddr    (regfile_waddr     ),
+   .wdata    (regfile_wdata     ),
+   .rdata_1  (signal_ID_out[105:74]    ),     //regfile_data_1
+   .rdata_2  (signal_ID_out[73:42]    )       //regfile_data_2
+);
+
+assign immediate_extended = $signed(signal_ID_in[15:0]);
+
+assign signal_ID_out[4:0] = signal_ID_in[15:11];
+assign signal_ID_out[9:5] = signal_ID_in[20:16];
+assign signal_ID_out[41:10] = immediate_extended;
+
+assign signal_ID_out[137:106] = signal_ID_in[63:32];    //updated_pc
+
+
+
+
+// EX STAGE
+
+reg_arstn_en #(
+      .DATA_W(16)
+) signal_pipe_ID_EX(
+      .clk   (clk       ),
+      .arst_n(arst_n    ),
+      .din   (signal_ID_out  ),
+      .en    (enable    ),
+      .dout  (signal_EX_in)
+   );
+   
 mux_2 #(
    .DATA_W(5)
 ) regfile_dest_mux (
@@ -108,21 +165,6 @@ mux_2 #(
    .select_a(reg_dst          ),
    .mux_out (regfile_waddr     )
 );
-
-register_file #(
-   .DATA_W(32)
-) register_file(
-   .clk      (clk               ),
-   .arst_n   (arst_n            ),
-   .reg_write(reg_write         ),
-   .raddr_1  (instruction[25:21]),
-   .raddr_2  (instruction[20:16]),
-   .waddr    (regfile_waddr     ),
-   .wdata    (regfile_wdata     ),
-   .rdata_1  (regfile_data_1    ),
-   .rdata_2  (regfile_data_2    )
-);
-
 
 alu_control alu_ctrl(
    .function_field (instruction[5:0]),
@@ -152,6 +194,18 @@ alu#(
    .overflow (              )
 );
 
+// STAGE MEM
+
+reg_arstn_en #(
+      .DATA_W(16)
+) signal_pipe_EX_MEM(
+      .clk   (clk       ),
+      .arst_n(arst_n    ),
+      .din   (signal_IF  ),
+      .en    (enable    ),
+      .dout  (signal_ID)
+   );
+
 sram #(
    .ADDR_W(10),
    .DATA_W(32)
@@ -169,7 +223,27 @@ sram #(
    .rdata_ext(rdata_ext_2   )
 );
 
+branch_unit#(
+   .DATA_W(32)
+)branch_unit(
+   .updated_pc   (updated_pc        ),
+   .instruction  (instruction       ),
+   .branch_offset(immediate_extended),
+   .branch_pc    (branch_pc         ),
+   .jump_pc      (jump_pc         )
+);
 
+// WB STAGE
+
+reg_arstn_en #(
+      .DATA_W(16)
+) signal_pipe_MEM_WB(
+      .clk   (clk       ),
+      .arst_n(arst_n    ),
+      .din   (signal_IF  ),
+      .en    (enable    ),
+      .dout  (signal_ID)
+   );
 
 mux_2 #(
    .DATA_W(32)
@@ -181,16 +255,6 @@ mux_2 #(
 );
 
 
-
-branch_unit#(
-   .DATA_W(32)
-)branch_unit(
-   .updated_pc   (updated_pc        ),
-   .instruction  (instruction       ),
-   .branch_offset(immediate_extended),
-   .branch_pc    (branch_pc         ),
-   .jump_pc      (jump_pc         )
-);
 
 
 endmodule
