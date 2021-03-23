@@ -54,6 +54,19 @@ wire [     169:0] signal_ID_out, signal_EX_in;          // reg_write[169], mem_2
                                                         // updated_pc[159:128]
                                                         // regfile_data_1[127:96], regfile_data_2 [95:64]
                                                         // immediate_extended[63:32], instruction[31:0]
+                                                        
+wire [     171:0] signal_EX_out, signal_MEM_in;          // reg_write[171], mem_2_reg[170]
+                                                         // jump [169], branch[168], mem_read[167], mem_write[166]
+                                                         // updated_pc[165:134]
+                                                         // zero_flag[133], alu_out[132:101]
+                                                         // regfile_data_2[100:69]
+                                                         // regfile_waddr[68:64]
+                                                         // immediate_extended[63:32], instruction[31:0]
+
+wire [      97:0] signal_MEM_out, signal_WB_in;          // reg_write[97], mem_2_reg[96]
+                                                         // dram_data[95:64]
+                                                         // alu_out[63:32]
+                                                         // regfile_data_2[31:0]
                   
 
 wire signed [31:0] immediate_extended;
@@ -108,15 +121,15 @@ reg_arstn_en #(
 
 control_unit control_unit(
    .opcode   (signal_ID_in[31:26]),
-   .reg_dst  (signal_ID_out[141]           ),           //reg_dst
-   .branch   (signal_ID_out[144]            ),          //branch
-   .mem_read (signal_ID_out[143]          ),            //mem_read
-   .mem_2_reg(signal_ID_out[146]         ),             //mem_2_reg
-   .alu_op   (signal_ID_out[140:139]            ),      //alu_op
-   .mem_write(signal_ID_out[142]         ),             //mem_write
-   .alu_src  (signal_ID_out[138]),                      //alu_src
-   .reg_write(signal_ID_out[147]         ),             //reg_write
-   .jump     (signal_ID_out[145]              )         //jump
+   .reg_dst  (signal_ID_out[163]           ),           //reg_dst
+   .branch   (signal_ID_out[166]            ),          //branch
+   .mem_read (signal_ID_out[165]          ),            //mem_read
+   .mem_2_reg(signal_ID_out[168]         ),             //mem_2_reg
+   .alu_op   (signal_ID_out[162:161]            ),      //alu_op
+   .mem_write(signal_ID_out[164]         ),             //mem_write
+   .alu_src  (signal_ID_out[160]),                      //alu_src
+   .reg_write(signal_ID_out[169]         ),             //reg_write
+   .jump     (signal_ID_out[167]              )         //jump
 );
 
 
@@ -130,23 +143,22 @@ register_file #(
    .raddr_2  (signal_ID_in[20:16]),
    .waddr    (regfile_waddr     ),
    .wdata    (regfile_wdata     ),
-   .rdata_1  (signal_ID_out[105:74]    ),     //regfile_data_1
-   .rdata_2  (signal_ID_out[73:42]    )       //regfile_data_2
+   .rdata_1  (signal_ID_out[127:96]    ),     //regfile_data_1
+   .rdata_2  (signal_ID_out[95:64]    )       //regfile_data_2
 );
 
 assign immediate_extended = $signed(signal_ID_in[15:0]);
 
-assign signal_ID_out[4:0] = signal_ID_in[15:11];
-assign signal_ID_out[9:5] = signal_ID_in[20:16];
+assign signal_ID_out[31:0] = signal_ID_in[31:0];
 assign signal_ID_out[41:10] = immediate_extended;
 
-assign signal_ID_out[137:106] = signal_ID_in[63:32];    //updated_pc
+assign signal_ID_out[63:32] = signal_ID_in[63:32];    //updated_pc
 
 
 // EX STAGE
 
 reg_arstn_en #(
-      .DATA_W(16)
+      .DATA_W(170)
 ) signal_pipe_ID_EX(
       .clk   (clk       ),
       .arst_n(arst_n    ),
@@ -158,24 +170,24 @@ reg_arstn_en #(
 mux_2 #(
    .DATA_W(5)
 ) regfile_dest_mux (
-   .input_a (signal_EX_in[4:0]),
-   .input_b (signal_EX_in[9:5]),
-   .select_a(signal_EX_in[141]          ),
-   .mux_out (regfile_waddr     )
+   .input_a (signal_EX_in[15:11]),                  //instruction[15:11]
+   .input_b (signal_EX_in[20:16]),                  //instruction[20:16]
+   .select_a(signal_EX_in[163]),                    //reg_dst
+   .mux_out (signal_EX_out[68:64]     )             //regfile_waddr
 );
 
 alu_control alu_ctrl(
-   .function_field (signal_EX_in[15:10]),               //instruction[5:0]
-   .alu_op         (signal_EX_in[140:139]          ),   //alu_op
+   .function_field (signal_EX_in[5:0]),                 //instruction[5:0]
+   .alu_op         (signal_EX_in[162:161]          ),   //alu_op
    .alu_control    (alu_control     )
 );
 
 mux_2 #(
    .DATA_W(32)
 ) alu_operand_mux (
-   .input_a (signal_EX_in[41:10]),          // immediate_extended
-   .input_b (signal_EX_in[73:42]    ),      //regfile_data_2
-   .select_a(signal_EX_in[138]           ), //alu_src
+   .input_a (signal_EX_in[63:32]),          // immediate_extended
+   .input_b (signal_EX_in[95:64]    ),      //regfile_data_2
+   .select_a(signal_EX_in[160]           ), //alu_src
    .mux_out (alu_operand_2     )
 );
 
@@ -183,25 +195,32 @@ mux_2 #(
 alu#(
    .DATA_W(32)
 ) alu(
-   .alu_in_0 (signal_EX_in[105:74),     //regfile_data_1
+   .alu_in_0 (signal_EX_in[127:96),         //regfile_data_1
    .alu_in_1 (alu_operand_2 ),
    .alu_ctrl (alu_control   ),
-   .alu_out  (alu_out       ),
-   .shft_amnt(signal_EX_in[20:16]),     // instruction[10:6]
-   .zero_flag(zero_flag     ),
+   .alu_out  (signal_EX_out[132:101]),      // alu_out
+   .shft_amnt(signal_EX_in[10:6]),          // instruction[10:6]
+   .zero_flag(signal_EX_out[133]  ),        // zero_flag
    .overflow (              )
 );
+
+
+assign signal_EX_out[63:0] = signal_EX_in[63:0];        // instruction + immediate_extended
+assign signal_EX_out[100:69] = signal_EX_in[95:64];     // regfile_data_2
+assign signal_EX_out[165:134] = signal_EX_in[159:128];  // updated_pc
+assign signal_EX_out[171:166] = signal_EX_in[169:164];  // WB + M control signals
+
 
 // STAGE MEM
 
 reg_arstn_en #(
-      .DATA_W(16)
+      .DATA_W(172)
 ) signal_pipe_EX_MEM(
       .clk   (clk       ),
       .arst_n(arst_n    ),
-      .din   (signal_IF  ),
+      .din   (signal_EX_out  ),
       .en    (enable    ),
-      .dout  (signal_ID)
+      .dout  (signal_MEM_in)
    );
 
 sram #(
@@ -209,52 +228,51 @@ sram #(
    .DATA_W(32)
 ) data_memory(
    .clk      (clk           ),
-   .addr     (alu_out       ),
-   .wen      (mem_write     ),
-   .ren      (mem_read      ),
-   .wdata    (regfile_data_2),
-   .rdata    (dram_data     ),   
-   .addr_ext (addr_ext_2    ),
-   .wen_ext  (wen_ext_2     ),
-   .ren_ext  (ren_ext_2     ),
-   .wdata_ext(wdata_ext_2   ),
-   .rdata_ext(rdata_ext_2   )
+   .addr     (signal_MEM_in[132:101]),      // alu_out
+   .wen      (signal_MEM_in[166]    ),      // mem_write
+   .ren      (signal_MEM_in[167]    ),      // mem_read
+   .wdata    (signal_MEM_in[100:69] ),      // regfile_data_2
+   .rdata    (signal_MEM_out[95:64] ),      // dram_data
+   .addr_ext (addr_ext_2            ),
+   .wen_ext  (wen_ext_2             ),
+   .ren_ext  (ren_ext_2             ),
+   .wdata_ext(wdata_ext_2           ),
+   .rdata_ext(rdata_ext_2           )
 );
 
 branch_unit#(
    .DATA_W(32)
 )branch_unit(
-   .updated_pc   (updated_pc        ),
-   .instruction  (instruction       ),
-   .branch_offset(immediate_extended),
-   .branch_pc    (branch_pc         ),
-   .jump_pc      (jump_pc         )
+   .updated_pc   (signal_MEM_in[165:134]),    // updated_pc
+   .instruction  (signal_MEM_in[31:0]   ),    // instruction
+   .branch_offset(signal_MEM_in[63:32]  ),    // immediate_extended
+   .branch_pc    (branch_pc             ),
+   .jump_pc      (jump_pc               )
 );
 
 // WB STAGE
 
 reg_arstn_en #(
-      .DATA_W(16)
+      .DATA_W(98)
 ) signal_pipe_MEM_WB(
       .clk   (clk       ),
       .arst_n(arst_n    ),
-      .din   (signal_IF  ),
+      .din   (signal_MEM_out ),
       .en    (enable    ),
-      .dout  (signal_ID)
+      .dout  (signal_WB_in)
    );
 
 mux_2 #(
    .DATA_W(32)
 ) regfile_data_mux (
-   .input_a  (dram_data    ),
-   .input_b  (alu_out      ),
-   .select_a (mem_2_reg     ),
-   .mux_out  (regfile_wdata)
+   .input_a  (signal_WB_in[95:64]),          // dram_data
+   .input_b  (signal_WB_in[63:32]),          // alu_out
+   .select_a (signal_WB_in[96]   ),          // mem_2_reg
+   .mux_out  (regfile_wdata      )
 );
 
 
 
 
 endmodule
-
 
