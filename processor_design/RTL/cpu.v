@@ -85,7 +85,7 @@ pc #(
    .jump      (signal_MEM_in[169]      ),           // jump
    .current_pc(current_pc),
    .enable    (enable    ),
-   .updated_pc(signal_IF_out[63:32])                // updated_pc
+   .updated_pc(updated_pc)                // updated_pc
 );
 
 
@@ -107,6 +107,8 @@ sram #(
 );
 
 assign signal_IF_out[31:0] = instruction;
+assign signal_IF_out[63:32] = updated_pc;
+
 // ID STAGE
 
 reg_arstn_en #(
