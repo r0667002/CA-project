@@ -46,7 +46,7 @@ wire [       4:0] regfile_waddr;
 wire [      31:0] regfile_wdata, dram_data,alu_out,
                   regfile_data_1,regfile_data_2,
                   alu_operand_2;
-wire [      63:0] signal_IF_out,signal_ID_in;           // updated_pc, instruction
+wire [      63:0] signal_IF_out,signal_ID_in;           // updated_pc[63:32], instruction[31:0]
 
 wire [     169:0] signal_ID_out, signal_EX_in;          // reg_write[169], mem_2_reg[168]
                                                         // jump [167], branch[166], mem_read[165], mem_write[164]
@@ -72,7 +72,6 @@ wire [      97:0] signal_MEM_out, signal_WB_in;          // reg_write[97], mem_2
 wire signed [31:0] immediate_extended;
 
 
-
 // IF Stage
 pc #(
    .DATA_W(32)
@@ -81,12 +80,12 @@ pc #(
    .arst_n    (arst_n    ),
    .branch_pc (branch_pc ),
    .jump_pc   (jump_pc   ),
-   .zero_flag (signal_MEM_in[133] ),              // zero_flag
-   .branch    (signal_MEM_in[168]    ), // branch
-   .jump      (signal_MEM_in[169]      ),        // jump
+   .zero_flag (signal_MEM_in[133] ),                // zero_flag
+   .branch    (signal_MEM_in[168]    ),             // branch
+   .jump      (signal_MEM_in[169]      ),           // jump
    .current_pc(current_pc),
    .enable    (enable    ),
-   .updated_pc(signal_IF_out[63:32])        // updated_pc
+   .updated_pc(signal_IF_out[63:32])                // updated_pc
 );
 
 
@@ -138,21 +137,21 @@ register_file #(
 ) register_file(
    .clk      (clk               ),
    .arst_n   (arst_n            ),
-   .reg_write(signal_WB_in[97]         ),            // reg_write
+   .reg_write(signal_WB_in[97]         ),               // reg_write
    .raddr_1  (signal_ID_in[25:21]),
    .raddr_2  (signal_ID_in[20:16]),
-   .waddr    (signal_WB_in[31:0]     ),       // regfile_waddr
+   .waddr    (signal_WB_in[31:0]     ),                 // regfile_waddr
    .wdata    (regfile_wdata     ),
-   .rdata_1  (signal_ID_out[127:96]    ),     //regfile_data_1
-   .rdata_2  (signal_ID_out[95:64]    )       //regfile_data_2
+   .rdata_1  (signal_ID_out[127:96]    ),               //regfile_data_1
+   .rdata_2  (signal_ID_out[95:64]    )                 //regfile_data_2
 );
 
 assign immediate_extended = $signed(signal_ID_in[15:0]);
 
-assign signal_ID_out[31:0] = signal_ID_in[31:0];
-assign signal_ID_out[41:10] = immediate_extended;
 
-assign signal_ID_out[63:32] = signal_ID_in[63:32];    //updated_pc
+assign signal_ID_out[31:0] = signal_ID_in[31:0];        //instruction
+assign signal_ID_out[63:32] = immediate_extended;       //immediate_extended
+assign signal_ID_out[159:128] = signal_ID_in[63:32];    //updated_pc
 
 
 // EX STAGE
