@@ -63,10 +63,10 @@ wire [     171:0] signal_EX_out, signal_MEM_in;          // reg_write[171], mem_
                                                          // regfile_waddr[68:64]
                                                          // immediate_extended[63:32], instruction[31:0]
 
-wire [      97:0] signal_MEM_out, signal_WB_in;          // reg_write[97], mem_2_reg[96]
-                                                         // dram_data[95:64]
-                                                         // alu_out[63:32]
-                                                         // regfile_waddr[31:0]
+wire [      97:0] signal_MEM_out, signal_WB_in;          // reg_write[70], mem_2_reg[69]
+                                                         // dram_data[68:37]
+                                                         // alu_out[36:5]
+                                                         // regfile_waddr[4:0]
                   
 
 wire signed [31:0] immediate_extended;
@@ -107,7 +107,6 @@ sram #(
 );
 
 assign signal_IF_out[31:0] = instruction;
-
 // ID STAGE
 
 reg_arstn_en #(
@@ -139,10 +138,10 @@ register_file #(
 ) register_file(
    .clk      (clk               ),
    .arst_n   (arst_n            ),
-   .reg_write(signal_WB_in[97]         ),               // reg_write
+   .reg_write(signal_WB_in[70]         ),               // reg_write
    .raddr_1  (signal_ID_in[25:21]),
    .raddr_2  (signal_ID_in[20:16]),
-   .waddr    (signal_WB_in[31:0]     ),                 // regfile_waddr
+   .waddr    (signal_WB_in[4:0]     ),                 // regfile_waddr
    .wdata    (regfile_wdata     ),
    .rdata_1  (signal_ID_out[127:96]    ),               //regfile_data_1
    .rdata_2  (signal_ID_out[95:64]    )                 //regfile_data_2
@@ -233,7 +232,7 @@ sram #(
    .wen      (signal_MEM_in[166]    ),      // mem_write
    .ren      (signal_MEM_in[167]    ),      // mem_read
    .wdata    (signal_MEM_in[100:69] ),      // regfile_data_2
-   .rdata    (signal_MEM_out[95:64] ),      // dram_data
+   .rdata    (signal_MEM_out[68:37] ),      // dram_data
    .addr_ext (addr_ext_2            ),
    .wen_ext  (wen_ext_2             ),
    .ren_ext  (ren_ext_2             ),
@@ -251,6 +250,11 @@ branch_unit#(
    .jump_pc      (jump_pc               )
 );
 
+assign signal_MEM_out[4:0] = signal_MEM_in[68:64] // regfile_waddr
+assign signal_MEM_out[36:5] = signal_MEM_in[132:101] // alu_out
+assign signal_MEM_out[70:69] = signal_MEM_in[171:170] // reg_write, mem_2_reg
+
+
 // WB STAGE
 
 reg_arstn_en #(
@@ -266,9 +270,9 @@ reg_arstn_en #(
 mux_2 #(
    .DATA_W(32)
 ) regfile_data_mux (
-   .input_a  (signal_WB_in[95:64]),          // dram_data
-   .input_b  (signal_WB_in[63:32]),          // alu_out
-   .select_a (signal_WB_in[96]   ),          // mem_2_reg
+   .input_a  (signal_WB_in[68:37]),          // dram_data
+   .input_b  (signal_WB_in[36:5] ),          // alu_out
+   .select_a (signal_WB_in[69]   ),          // mem_2_reg
    .mux_out  (regfile_wdata      )
    );
 
