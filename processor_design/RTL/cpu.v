@@ -250,9 +250,9 @@ branch_unit#(
    .jump_pc      (jump_pc               )
 );
 
-assign signal_MEM_out[4:0] = signal_MEM_in[68:64] // regfile_waddr
-assign signal_MEM_out[36:5] = signal_MEM_in[132:101] // alu_out
-assign signal_MEM_out[70:69] = signal_MEM_in[171:170] // reg_write, mem_2_reg
+assign signal_MEM_out[4:0] = signal_MEM_in[68:64]; // regfile_waddr
+assign signal_MEM_out[36:5] = signal_MEM_in[132:101]; // alu_out
+assign signal_MEM_out[70:69] = signal_MEM_in[171:170]; // reg_write, mem_2_reg
 
 
 // WB STAGE
