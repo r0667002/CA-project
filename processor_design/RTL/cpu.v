@@ -98,13 +98,15 @@ sram #(
    .wen      (1'b0          ),
    .ren      (1'b1          ),
    .wdata    (32'b0         ),
-   .rdata    (signal_IF_out[31:0]   ),      //instruction
+   .rdata    (instruction   ),      //instruction
    .addr_ext (addr_ext      ),
    .wen_ext  (wen_ext       ), 
    .ren_ext  (ren_ext       ),
    .wdata_ext(wdata_ext     ),
    .rdata_ext(rdata_ext     )
 );
+
+assign signal_IF_out[31:0] = instruction;
 
 // ID STAGE
 
