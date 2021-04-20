@@ -38,14 +38,14 @@ module cpu(
 wire              zero_flag;
 wire [      31:0] branch_pc,updated_pc,current_pc,jump_pc,
                   instruction;
-wire [       1:0] alu_op;
+wire [       1:0] alu_op, fw_mux_A_crtl, fw_mux_B_crtl;
 wire [       3:0] alu_control;
 wire              reg_dst,branch,mem_read,mem_2_reg,
                   mem_write,alu_src, reg_write, jump;
 wire [       4:0] regfile_waddr;
 wire [      31:0] regfile_wdata, dram_data,alu_out,
                   regfile_data_1,regfile_data_2,
-                  alu_operand_2;
+                  alu_operand_2, fw_mux_A_out, fw_mux_B_out;
 wire [      63:0] signal_IF_out,signal_ID_in;           // updated_pc[63:32], instruction[31:0]
 
 wire [     169:0] signal_ID_out, signal_EX_in;          // reg_write[169], mem_2_reg[168]
@@ -184,20 +184,51 @@ alu_control alu_ctrl(
    .alu_control    (alu_control     )
 );
 
+fw_unit fw_unit(
+   .ex_mem_rd       (signal_MEM_in[68:64]),
+   .mem_wb_rd       (signal_WB_in[4:0]),
+   .rs1_addr        (signal_EX_in[25:21]),          // rs1 addr from the instr
+   .rs2_addr        (signal_EX_in[20:16]),          // rs2 addr from the instr
+   .ex_mem_regwrite (signal_MEM_in[171]),           //mem_2_reg
+   .mem_wb_regwrite (signal_WB_in[70]),
+   .mux_A_crtl      (fw_mux_A_crtl),
+   .mux_B_crtl      (fw_mux_B_crtl)
+);
+
+mux_3 #(
+   .DATA_W(32)
+) alu_fw_mux_A (
+   .input_a (signal_EX_in[127:96]),                 //regfile_data_1
+   .input_b (signal_MEM_in[132:101]),               //ALU_result of MEM
+   .input_c (regfile_wdata),                        //WB_result
+   .select_a(fw_mux_A_crtl),                        //crtl signal
+   .mux_out (fw_mux_A_out)
+);
+
+mux_3 #(
+   .DATA_W(32)
+) alu_fw_mux_B (
+   .input_a (signal_EX_in[95:64]),                  //regfile_data_2
+   .input_b (signal_MEM_in[132:101]),               //ALU_result of MEM
+   .input_c (regfile_wdata),                        //WB_result
+   .select_a(fw_mux_B_crtl),                        //crtl signal
+   .mux_out (fw_mux_B_out)
+);
+
 mux_2 #(
    .DATA_W(32)
 ) alu_operand_mux (
-   .input_a (signal_EX_in[63:32]),          // immediate_extended
-   .input_b (signal_EX_in[95:64]    ),      //regfile_data_2
-   .select_a(signal_EX_in[160]           ), //alu_src
-   .mux_out (alu_operand_2     )
+   .input_a (signal_EX_in[63:32]),                  // immediate_extended
+   .input_b (fw_mux_B_out),                         //regfile_data_2 from fw unit
+   .select_a(signal_EX_in[160]),                    //alu_src
+   .mux_out (alu_operand_2)
 );
 
 
 alu#(
    .DATA_W(32)
 ) alu(
-   .alu_in_0 (signal_EX_in[127:96]),         //regfile_data_1
+   .alu_in_0 (fw_mux_A_out),                //regfile_data_1 from fw unit
    .alu_in_1 (alu_operand_2 ),
    .alu_ctrl (alu_control   ),
    .alu_out  (signal_EX_out[132:101]),      // alu_out
