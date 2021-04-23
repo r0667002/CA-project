@@ -1,3 +1,2 @@
 * Pipeline basic: mult1, mult2 works, basic not --> add 4x ffffff at the end
-* Pipeline hazzards: test mult3 works, does hazzard detection (stalling) need to be included?
 * Report synthesis: how to interpret / write report?
